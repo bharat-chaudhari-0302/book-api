@@ -21,13 +21,13 @@ public class BookController {
     private final MeterRegistry meterRegistry;
 
     @PostMapping
-    public ResponseEntity<BookResponse> createBook(@Valid @RequestBody BookRequest request) {
+    public ResponseEntity<BookResponse> createBook(@Valid @RequestBody final BookRequest request) {
         meterRegistry.counter("books.created").increment();
         return new ResponseEntity<>(bookService.createBook(request), HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BookResponse> getBook(@PathVariable Long id) {
+    public ResponseEntity<BookResponse> getBook(@PathVariable final Long id) {
         return ResponseEntity.ok(bookService.getBook(id));
     }
 
@@ -37,12 +37,12 @@ public class BookController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BookResponse> updateBook(@PathVariable Long id, @Valid @RequestBody BookRequest request) {
+    public ResponseEntity<BookResponse> updateBook(@PathVariable final Long id, @Valid @RequestBody final BookRequest request) {
         return ResponseEntity.ok(bookService.updateBook(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBook(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteBook(@PathVariable final Long id) {
         bookService.deleteBook(id);
         return ResponseEntity.noContent().build();
     }

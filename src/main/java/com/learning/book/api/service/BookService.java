@@ -22,17 +22,17 @@ public class BookService {
     private final BookMapper bookMapper;
 
     @Transactional
-    public BookResponse createBook(BookRequest request) {
+    public BookResponse createBook(final BookRequest request) {
         log.info("Creating book with title: {}", request.getTitle());
-        Book book = bookMapper.toEntity(request);
-        Book savedBook = bookRepository.save(book);
+        final Book book = bookMapper.toEntity(request);
+        final Book savedBook = bookRepository.save(book);
         return bookMapper.toResponse(savedBook);
     }
 
     @Transactional(readOnly = true)
-    public BookResponse getBook(Long id) {
+    public BookResponse getBook(final Long id) {
         log.info("Fetching book with id: {}", id);
-        Book book = bookRepository.findById(id)
+        final Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
         return bookMapper.toResponse(book);
     }
@@ -46,20 +46,20 @@ public class BookService {
     }
 
     @Transactional
-    public BookResponse updateBook(Long id, BookRequest request) {
+    public BookResponse updateBook(final Long id, final BookRequest request) {
         log.info("Updating book with id: {}", id);
-        Book book = bookRepository.findById(id)
+        final Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
         book.setTitle(request.getTitle());
         book.setAuthor(request.getAuthor());
         book.setIsbn(request.getIsbn());
         book.setPrice(request.getPrice());
-        Book updatedBook = bookRepository.save(book);
+        final Book updatedBook = bookRepository.save(book);
         return bookMapper.toResponse(updatedBook);
     }
 
     @Transactional
-    public void deleteBook(Long id) {
+    public void deleteBook(final Long id) {
         log.info("Deleting book with id: {}", id);
         if (!bookRepository.existsById(id)) {
             throw new ResourceNotFoundException("Book not found with id: " + id);
