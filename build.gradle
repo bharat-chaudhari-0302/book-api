@@ -1,13 +1,15 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.4'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.3.0'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'checkstyle'
+    id 'pmd'
+    id 'com.github.spotbugs' version '6.0.24'
+    id 'jacoco'
 }
 
-group = 'com.learning'
+group = 'com.learning.book.api'
 version = '0.0.1-SNAPSHOT'
-description = 'CRUD API for managing books with Spring Boot 3.4'
-
 
 java {
     toolchain {
@@ -15,36 +17,89 @@ java {
     }
 }
 
-ext {
-    lombokVersion = '1.18.30'
-    mapstructVersion = '1.5.5.Final'
-}
-
 repositories {
     mavenCentral()
 }
 
-
 dependencies {
-
-    implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    implementation 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+    implementation 'org.mapstruct:mapstruct:1.6.2'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.2'
+
     runtimeOnly 'org.postgresql:postgresql'
-
-    compileOnly "org.projectlombok:lombok:$lombokVersion"
-    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
-
-    implementation "org.mapstruct:mapstruct:$mapstructVersion"
-    annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+checkstyle {
+    toolVersion = '10.12.0'
+    configFile = file("${project.rootDir}/config/checkstyle/google_checks.xml")
+    ignoreFailures = false
+    maxWarnings = 0
+}
+
+pmd {
+    toolVersion = '6.55.0'
+    ignoreFailures = false
+    ruleSetFiles = files("${project.rootDir}/config/pmd/ruleset.xml")
+    consoleOutput = true
+}
+
+spotbugs {
+    toolVersion = '4.8.6'
+    effort = com.github.spotbugs.snom.Effort.MAX
+    excludeFilter = file("${project.rootDir}/config/spotbugs/excludeFilter.xml")
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
+    reports {
+        html.enabled = true
+        xml.enabled = false
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+    reports {
+        xml.outputLocation = file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        html.outputLocation = file("${buildDir}/reports/jacoco/test/html")
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    'com/learning/book/api/BookApiApplication.class'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.8 // 80% coverage minimum
+            }
+        }
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
