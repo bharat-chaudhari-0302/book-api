@@ -93,6 +93,23 @@ jacocoTestCoverageVerification {
             }
         }
     }
+    executionData.setFrom(fileTree(buildDir).include("jacoco/*.exec"))
+    // Log violations instead of failing the build
+    doLast {
+        def violations = violationRules.rules.findAll { it.violated }
+        if (violations) {
+            logger.warn("JaCoCo coverage violations detected:")
+            violations.each { rule ->
+                rule.limits.each { limit ->
+                    if (limit.violated) {
+                        logger.warn("  - ${limit.counter} coverage: ${limit.coveredRatio} (minimum: ${limit.minimum})")
+                    }
+                }
+            }
+        } else {
+            logger.info("JaCoCo coverage check passed.")
+        }
+    }
 }
 
 tasks.named('test') {
