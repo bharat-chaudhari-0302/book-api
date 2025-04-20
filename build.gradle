@@ -50,8 +50,8 @@ checkstyle {
 
 tasks.withType(Checkstyle) {
     reports {
-        html.enabled = true
-        xml.enabled = false
+        html.required.set(true)
+        xml.required.set(true)
     }
 }
 
@@ -65,8 +65,8 @@ pmd {
 
 tasks.withType(Pmd) {
     reports {
-        html.enabled = true
-        xml.enabled = false
+        html.required.set(true)
+        xml.required.set(true)
     }
 }
 
@@ -80,8 +80,8 @@ spotbugs {
 
 tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
     reports {
-        html.enabled = true
-        xml.enabled = false
+        html.required.set(true)
+        xml.required.set(true)
     }
 }
 
@@ -104,14 +104,13 @@ jacocoTestReport {
 }
 
 jacocoTestCoverageVerification {
-    // Disable strict enforcement to prevent failure
-    // violationRules {
-    //     rule {
-    //         limit {
-    //             minimum = 0.8 // 80% coverage minimum
-    //         }
-    //     }
-    // }
+     violationRules {
+         rule {
+             limit {
+                 minimum = 0.8 // 80% coverage minimum
+             }
+         }
+     }
     executionData.setFrom(fileTree(buildDir).include("jacoco/*.exec"))
     doLast {
         def violations = violationRules.rules.findAll { it.violated }
