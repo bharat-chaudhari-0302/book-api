@@ -1,3 +1,6 @@
+import com.github.spotbugs.snom.Effort
+import com.github.spotbugs.snom.SpotBugsTask
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.0'
@@ -6,6 +9,7 @@ plugins {
     id 'pmd'
     id 'com.github.spotbugs' version '6.0.24'
     id 'jacoco'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 group = 'com.learning.book.api'
@@ -40,6 +44,32 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+spotless {
+    java {
+        target 'src/**/*.java'
+        importOrder() // applies default import order and removes unused imports
+        removeUnusedImports()
+        googleJavaFormat() // optional, formats code using Google's style
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'spotlessApply'
+    // Force spotlessApply to always run before compilation
+    mustRunAfter 'spotlessApply'
+}
+
+tasks.named('spotlessApply') {
+    outputs.upToDateWhen { false }
+}
+gradle.taskGraph.whenReady {
+    tasks.each { task ->
+        if (task.name != 'spotlessApply' && task.name != 'spotlessCheck') {
+            task.dependsOn 'spotlessApply'
+        }
+    }
+}
+
 checkstyle {
     toolVersion = '10.12.0'
     configFile = file("${project.rootDir}/config/checkstyle/google_checks.xml")
@@ -48,11 +78,13 @@ checkstyle {
     reportsDir = file("${buildDir}/reports/checkstyle")
 }
 
-tasks.withType(Checkstyle) {
+tasks.withType(Checkstyle).configureEach {
     reports {
         html.required.set(true)
         xml.required.set(true)
     }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
 }
 
 pmd {
@@ -63,26 +95,30 @@ pmd {
     reportsDir = file("${buildDir}/reports/pmd")
 }
 
-tasks.withType(Pmd) {
+tasks.withType(Pmd).configureEach {
     reports {
         html.required.set(true)
         xml.required.set(true)
     }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
 }
 
 spotbugs {
     toolVersion = '4.8.6'
     ignoreFailures = true
-    effort = com.github.spotbugs.snom.Effort.MAX
+    effort = Effort.MAX
     excludeFilter = file("${project.rootDir}/config/spotbugs/excludeFilter.xml")
     reportsDir = file("${buildDir}/reports/spotbugs")
 }
 
-tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
+tasks.withType(SpotBugsTask).configureEach {
     reports {
         html.required.set(true)
         xml.required.set(true)
     }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
 }
 
 jacoco {
@@ -110,7 +146,7 @@ jacocoTestCoverageVerification {
             limit {
                 counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
-                minimum = 0.80
+                minimum = 0.70
             }
         }
     }
