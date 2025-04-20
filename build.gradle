@@ -1,13 +1,19 @@
+import com.github.spotbugs.snom.Effort
+import com.github.spotbugs.snom.SpotBugsTask
+
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.4'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.3.0'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'checkstyle'
+    id 'pmd'
+    id 'com.github.spotbugs' version '6.0.24'
+    id 'jacoco'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
-group = 'com.learning'
+group = 'com.learning.book.api'
 version = '0.0.1-SNAPSHOT'
-description = 'CRUD API for managing books with Spring Boot 3.4'
-
 
 java {
     toolchain {
@@ -15,36 +21,162 @@ java {
     }
 }
 
-ext {
-    lombokVersion = '1.18.30'
-    mapstructVersion = '1.5.5.Final'
-}
-
 repositories {
     mavenCentral()
 }
 
-
 dependencies {
-
-    implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    implementation 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+    implementation 'org.mapstruct:mapstruct:1.6.2'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.2'
+
     runtimeOnly 'org.postgresql:postgresql'
-
-    compileOnly "org.projectlombok:lombok:$lombokVersion"
-    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
-
-    implementation "org.mapstruct:mapstruct:$mapstructVersion"
-    annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    testImplementation 'com.h2database:h2:2.3.230'
 }
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        importOrder() // applies default import order and removes unused imports
+        removeUnusedImports()
+        googleJavaFormat() // optional, formats code using Google's style
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'spotlessApply'
+    // Force spotlessApply to always run before compilation
+    mustRunAfter 'spotlessApply'
+}
+
+tasks.named('spotlessApply') {
+    outputs.upToDateWhen { false }
+}
+gradle.taskGraph.whenReady {
+    tasks.each { task ->
+        if (task.name != 'spotlessApply' && task.name != 'spotlessCheck') {
+            task.dependsOn 'spotlessApply'
+        }
+    }
+}
+
+checkstyle {
+    toolVersion = '10.12.0'
+    configFile = file("${project.rootDir}/config/checkstyle/google_checks.xml")
+    ignoreFailures = true
+    maxWarnings = 0
+    reportsDir = file("${buildDir}/reports/checkstyle")
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
+}
+
+pmd {
+    toolVersion = '7.12.0'
+    ignoreFailures = true
+    ruleSetFiles = files("${project.rootDir}/config/pmd/ruleset.xml")
+    consoleOutput = true
+    reportsDir = file("${buildDir}/reports/pmd")
+}
+
+tasks.withType(Pmd).configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
+}
+
+spotbugs {
+    toolVersion = '4.8.6'
+    ignoreFailures = true
+    effort = Effort.MAX
+    excludeFilter = file("${project.rootDir}/config/spotbugs/excludeFilter.xml")
+    reportsDir = file("${buildDir}/reports/spotbugs")
+}
+
+tasks.withType(SpotBugsTask).configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+    dependsOn 'spotlessApply'
+    mustRunAfter 'spotlessApply'
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+    reports {
+        xml.outputLocation = file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        html.outputLocation = file("${buildDir}/reports/jacoco/test/html")
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    'com/learning/book/api/BookApiApplication.class'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 0.70
+            }
+        }
+    }
+    executionData.setFrom(fileTree(buildDir).include("jacoco/*.exec"))
+    doLast {
+        def violations = violationRules.rules.findAll { it.violated }
+        if (violations) {
+            logger.warn("JaCoCo coverage violations detected:")
+            violations.each { rule ->
+                rule.limits.each { limit ->
+                    if (limit.violated) {
+                        logger.warn("  - ${limit.counter} coverage: ${limit.coveredRatio} (minimum: ${limit.minimum})")
+                    }
+                }
+            }
+        } else {
+            logger.info("JaCoCo coverage check passed.")
+        }
+    }
+}
+
+
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
